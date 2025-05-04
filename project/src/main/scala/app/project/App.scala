@@ -170,6 +170,18 @@ object App {
     findAny(df,1, df_ => df_.drop("e1")).show()
 
 
+    def withKeepColumnSimple(df: DataFrame, prefix: String = "e"): DataFrame = {
+      // On prend toutes les colonnes dont le nom commence par e et finit par un chiffre
+      val actifCols = df.columns
+        .filter(_.matches(s"$prefix[0-9]+"))
+        .map(name => col(s"$name.actif"))
+
+      df.withColumn("keep", actifCols.reduce(_ && _))
+    }
+
+    withKeepColumnSimple(df).show(false)
+
+
     }
 
   }
