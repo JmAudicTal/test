@@ -88,8 +88,89 @@ object App {
 
 
 
+
     Thread.sleep(1000)
     //val input = StdIn.readLine()
+
+
+    //*
+    //*
+    //*
+    //*
+    //*
+
+    // Définir le schéma avec des structs imbriqués
+    val schema = StructType(Seq(
+      StructField("id", IntegerType, nullable = false),
+      StructField("e1", StructType(Seq(StructField("actif", BooleanType, nullable = false))), nullable = false),
+      StructField("e2", StructType(Seq(StructField("actif", BooleanType, nullable = false))), nullable = false),
+      StructField("e3", StructType(Seq(StructField("actif", BooleanType, nullable = false))), nullable = false),
+      StructField("e4", StructType(Seq(StructField("actif", BooleanType, nullable = false))), nullable = false)
+    ))
+
+    // Données brutes
+    val data = Seq(
+      Row(1, Row(true), Row(false), Row(true), Row(false)),
+      Row(2, Row(false), Row(false), Row(false), Row(false)),
+      Row(3, Row(true), Row(true), Row(false), Row(true)),
+      Row(4, Row(true), Row(true), Row(true), Row(true)),
+      Row(5, Row(true), Row(false), Row(false), Row(true))
+    )
+
+    // Créer le DataFrame
+    val df = spark.createDataFrame(
+      spark.sparkContext.parallelize(data),
+      schema
+    )
+
+
+    val actifCols = df.schema.fields.collect {
+      case StructField(name, struct: StructType, _, _)
+        if name.matches("e[0-9]+") && struct.fieldNames.contains("actif") =>
+        col(s"$name.actif")
+    }
+
+    // Ajouter la colonne "keep" = tous les eX.actif doivent être true
+    val dfWithKeep = df.withColumn("keep", actifCols.reduce(_ && _))
+
+    dfWithKeep.show(false)
+
+    def withKeepColumn(df: DataFrame, prefix: String = "e"): DataFrame = {
+      // Récupérer les colonnes de struct eX contenant un champ "actif"
+      val actifCols: Seq[Column] = df.schema.fields.collect {
+        case StructField(name, struct: StructType, _, _)
+          if name.matches(s"$prefix[0-9]+") && struct.fieldNames.contains("actif") =>
+          col(s"$name.actif")
+      }.toSeq
+
+      if (actifCols.isEmpty) {
+        // Si aucune colonne correspondante, on garde le DataFrame tel quel
+        df.withColumn("keep", lit(true))
+      } else {
+        df.withColumn("keep", actifCols.reduce(_ && _))
+      }
+    }
+
+    withKeepColumn(df).show()
+
+    def findAny(df: DataFrame, lvl: Int, hook: DataFrame => DataFrame = df => df): DataFrame = {
+      val df2 = df.withColumn("AAA", lit(lvl))
+
+
+      // Appliquer le hook de transformation
+      hook(df2)
+
+    }
+
+    val hook: DataFrame => DataFrame = df => withKeepColumn(df, "e")
+    findAny(df,44,hook).show()
+
+    findAny(df,1, df_ => withKeepColumn(df_, "e")).show()
+
+    findAny(df,1, df_ => df_.drop("e1")).show()
+
+
+    }
 
   }
 }
