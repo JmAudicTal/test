@@ -181,6 +181,16 @@ object App {
 
     withKeepColumnSimple(df).show(false)
 
+    ///////////////////
+    ///////////////////
+    ///////////////////
+
+    def deduplicate(dff: DataFrame): DataFrame = {
+      dff.groupBy("A", "B")
+        //.agg(max("C_int").as("max_C"))
+        .agg(max(col("C").cast("int")).cast("boolean").alias("C"))
+    }
+
 
     }
 
