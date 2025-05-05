@@ -3,6 +3,35 @@ import org.apache.spark.sql.streaming.Trigger
 
 object JobKafkaPhoenixStreaming {
 
+  /*
+  import org.apache.spark.sql.{SparkSession, StreamingQuery}
+
+object Runner {
+
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder()
+      .appName("Multi-Job Kafka + Phoenix Runner")
+      .getOrCreate()
+
+    val jobs: Seq[StreamingQuery] = Seq(
+      JobKafkaPhoenixStreaming.run(spark)
+      // AutreJobStreaming.run(spark),
+      // JobKafkaToElastic.run(spark)
+    )
+
+    // Attente des jobs (arrêt si un job tombe)
+    jobs.foreach(_.awaitTermination())
+  }
+}
+
+
+
+  def run(spark: SparkSession): StreamingQuery = {
+    import spark.implicits._
+
+
+   */
+
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder()
       .appName("Kafka + Phoenix Streaming Job")
