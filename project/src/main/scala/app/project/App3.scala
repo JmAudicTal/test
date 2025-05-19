@@ -92,6 +92,79 @@ object QueryMonitor {
 
    */
 
+  val captor = ArgumentCaptor.forClass(classOf[DataFrame])
+  verify(mockWriter).write(captor.capture())
+
+  val capturedDF = captor.getValue
+  assert(capturedDF.columns.contains("name"))
+  assert(capturedDF.columns.contains("age"))
+  assert(capturedDF.count() == 2)
+
+
+  /////////////
+
+  def run(): Unit = {
+    val df = writer.read("myTablePhoenix")
+    val date = currentDate
+    val newDF = df.calcFromDate(date)
+    writer.write(newDF, "mySecondTablePhoenix")
+  }
+
+  protected def currentDate: LocalDate = LocalDate.now()
+
+
+
+  test("should pass DataFrame with fixed date to writer.write") {
+    val spark = SparkSession.builder().master("local").getOrCreate()
+    import spark.implicits._
+
+    val fixedDate = LocalDate.of(2024, 10, 1)
+    val originalDF = Seq(("Alice", 10)).toDF("name", "age")
+
+    // Extension implicite qui modifie légèrement le DataFrame
+    implicit class DFExt(df: DataFrame) {
+      def calcFromDate(date: LocalDate): DataFrame = {
+        // Simule une transformation avec la date
+        df.withColumn("run_date", lit(date.toString))
+      }
+    }
+
+    val mockWriter = mock[PhoenixWriter]
+    when(mockWriter.read("myTablePhoenix")).thenReturn(originalDF)
+
+    // MyJob avec date mockée
+    val job = new MyJob(mockWriter) {
+      override protected def currentDate: LocalDate = fixedDate
+    }
+
+    job.run()
+
+    val dfCaptor = ArgumentCaptor.forClass(classOf[DataFrame])
+    verify(mockWriter).write(dfCaptor.capture(), eq("mySecondTablePhoenix"))
+
+    val captured = dfCaptor.getValue
+    val result = captured.collect().map(_.getAs[String]("run_date")).toSet
+
+    assert(result == Set("2024-10-01"))
+  }
+}
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 }
