@@ -146,6 +146,37 @@ object QueryMonitor {
     val result = captured.collect().map(_.getAs[String]("run_date")).toSet
 
     assert(result == Set("2024-10-01"))
+    /////
+
+    // src/main/scala/utils/DataFrameNullChecker.scala
+    package utils
+
+    import org.apache.spark.sql.DataFrame
+    import org.slf4j.Logger
+
+    object DataFrameNullChecker {
+
+      def checkNulls(df: DataFrame, logger: Logger): Unit = {
+        val colsWithNull = df.columns.filter { colName =>
+          df.filter(df(colName).isNull).limit(1).count() > 0
+        }
+
+        if (colsWithNull.nonEmpty) {
+          logger.warn(s"Null values detected in columns: ${colsWithNull.mkString(", ")}")
+        }
+      }
+
+    }
+
+    /////
+
+
+    val logger = mock[Logger]
+
+    DataFrameNullChecker.checkNulls(df, logger)
+
+    verify(logger).warn("Null values detected in columns: id")
+
   }
 }
 
