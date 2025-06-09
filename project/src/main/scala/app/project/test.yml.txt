@@ -1,0 +1,38 @@
+stages:
+  - deploy
+  - run
+
+variables:
+  EDGE_HOST: edge.cloudera.example.com
+  EDGE_USER: hadoop
+  TARGET_DIR: /home/hadoop/scripts
+
+# Déploiement des scripts
+deploy_scripts:
+  stage: deploy
+  script:
+    - echo "Déploiement des scripts sur l'Edge Node..."
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh -o StrictHostKeyChecking=no $EDGE_USER@$EDGE_HOST "mkdir -p $TARGET_DIR"
+    - scp -o StrictHostKeyChecking=no scripts/*.sh $EDGE_USER@$EDGE_HOST:$TARGET_DIR/
+  only:
+    - main  # ou la branche que tu veux
+  when: manual
+  allow_failure: false
+
+# Exécution des scripts à distance
+run_scripts:
+  stage: run
+  script:
+    - echo "Exécution des scripts sur l'Edge Node..."
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh -o StrictHostKeyChecking=no $EDGE_USER@$EDGE_HOST "bash $TARGET_DIR/ton_script.sh"
+  only:
+    - main
+  when: manual
+  allow_failure: false
+  needs: [deploy_scripts]  # pour que ce bouton apparaisse après l'autre, mais reste manuel
