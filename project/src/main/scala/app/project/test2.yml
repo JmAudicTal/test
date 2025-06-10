@@ -31,3 +31,16 @@ include:
         - deploy_version_A
         - deploy_version_B
 
+          #####################
+
+  SELECT id,
+  SUM(CASE WHEN type = 'CRE' THEN 1 ELSE 0 END) AS CRE,
+  SUM(CASE WHEN type = 'DAC' THEN 1 ELSE 0 END) AS DAC
+  FROM ta_table
+  GROUP BY id;
+
+
+#################################
+
+
+
