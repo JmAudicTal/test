@@ -1,0 +1,33 @@
+yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' base-vars.yaml new-vars.yaml > merged-vars.yaml
+
+include:
+  - local: 'merged-vars.yaml'
+
+
+
+##############
+
+    stages:
+      - choix_action
+      - execution
+
+    deploy_version_A:
+      stage: choix_action
+      script:
+        - echo "Choix: Version A"
+      when: manual
+
+    deploy_version_B:
+      stage: choix_action
+      script:
+        - echo "Choix: Version B"
+      when: manual
+
+    execution:
+      stage: execution
+      script:
+        - echo "Exécution de l'action choisie"
+      needs:
+        - deploy_version_A
+        - deploy_version_B
+
