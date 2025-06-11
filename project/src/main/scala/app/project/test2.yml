@@ -42,5 +42,64 @@ include:
 
 #################################
 
+#!/bin/bash
+  
+  set -e
+  
+  NAMENODE=${NAMENODE:-"hdfs://namenode-host:8020"}
+  WORKFLOW_PATH=${WORKFLOW_PATH:-"/user/$USER_NAME/mon_workflow"}
+  
+  JOB_PROPS=$(mktemp)
+  
+  cat <<EOF > "$JOB_PROPS"
+  oozie.wf.application.path=${NAMENODE}${WORKFLOW_PATH}
+  oozie.use.system.libpath=true
+  user.name=${USER_NAME}
+  EOF
+  
+  echo "[INFO] Lancement du workflow Oozie..."
+RESPONSE=$(curl -s -X POST -H "Content-Type: application/xml" \
+  -d @"$JOB_PROPS" \
+  "http://${OOZIE_HOST}:11000/oozie/v2/jobs?action=start")
+  
+  JOB_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+  
+  if [ -n "$JOB_ID" ]; then
+echo "[SUCCÈS] Job lancé : $JOB_ID"
+  echo "curl -s http://${OOZIE_HOST}:11000/oozie/v2/job/${JOB_ID}?show=info"
+  else
+  echo "[ERREUR] Lancement échoué :"
+  echo "$RESPONSE"
+  exit 1
+  fi
+
+------------------------
+
+stages:
+  - deploy
+
+launch-oozie-workflow:
+  stage: deploy
+  script:
+    - chmod +x scripts/run_oozie.sh
+    - ./scripts/run_oozie.sh
+  variables:
+    OOZIE_HOST: "oozie.example.com"
+    USER_NAME: "ton_user"
+    NAMENODE: "hdfs://namenode.example.com:8020"
+    WORKFLOW_PATH: "/user/ton_user/mon_workflow"
+  tags:
+    - shell  # ou un runner docker si tu installes curl
+--------
+  
+  <workflow-app name="mon_workflow" xmlns="uri:oozie:workflow:0.5">
+    <parameters>
+      <include file="default-conf.xml"/>
+    </parameters>
+
+    <!-- reste du workflow -->
+  </workflow-app>
+
+
 
 
