@@ -43,3 +43,11 @@ for FILE in "$REPORT_DIR"/TEST-*.xml; do
     
     echo ']}' >> "$OUTPUT_FILE"
 echo "✅ Xray JSON generated: $OUTPUT_FILE"
+
+-------------
+// curl à priori fonctionnel sans json
+curl -H "Content-Type: multipart/form-data" \
+  -H "Authorization: Bearer $XRAY_TOKEN" \
+  -F "results=@target/surefire-reports/TEST-SampleTest.xml" \
+  "https://xray.cloud.getxray.app/api/v2/import/execution/junit"
+
