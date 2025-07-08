@@ -1,105 +1,45 @@
-yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' base-vars.yaml new-vars.yaml > merged-vars.yaml
-
-include:
-  - local: 'merged-vars.yaml'
-
-
-
-##############
-
-    stages:
-      - choix_action
-      - execution
-
-    deploy_version_A:
-      stage: choix_action
-      script:
-        - echo "Choix: Version A"
-      when: manual
-
-    deploy_version_B:
-      stage: choix_action
-      script:
-        - echo "Choix: Version B"
-      when: manual
-
-    execution:
-      stage: execution
-      script:
-        - echo "Exécution de l'action choisie"
-      needs:
-        - deploy_version_A
-        - deploy_version_B
-
-          #####################
-
-  SELECT id,
-  SUM(CASE WHEN type = 'CRE' THEN 1 ELSE 0 END) AS CRE,
-  SUM(CASE WHEN type = 'DAC' THEN 1 ELSE 0 END) AS DAC
-  FROM ta_table
-  GROUP BY id;
-
-
-#################################
-
 #!/bin/bash
-  
+# file: convert_junit_to_xray_json.sh
+
   set -e
   
-  NAMENODE=${NAMENODE:-"hdfs://namenode-host:8020"}
-  WORKFLOW_PATH=${WORKFLOW_PATH:-"/user/$USER_NAME/mon_workflow"}
-  
-  JOB_PROPS=$(mktemp)
-  
-  cat <<EOF > "$JOB_PROPS"
-  oozie.wf.application.path=${NAMENODE}${WORKFLOW_PATH}
-  oozie.use.system.libpath=true
-  user.name=${USER_NAME}
-  EOF
-  
-  echo "[INFO] Lancement du workflow Oozie..."
-RESPONSE=$(curl -s -X POST -H "Content-Type: application/xml" \
-  -d @"$JOB_PROPS" \
-  "http://${OOZIE_HOST}:11000/oozie/v2/jobs?action=start")
-  
-  JOB_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
-  
-  if [ -n "$JOB_ID" ]; then
-echo "[SUCCÈS] Job lancé : $JOB_ID"
-  echo "curl -s http://${OOZIE_HOST}:11000/oozie/v2/job/${JOB_ID}?show=info"
-  else
-  echo "[ERREUR] Lancement échoué :"
-  echo "$RESPONSE"
+  if [ $# -ne 2 ]; then
+echo "Usage: $0 <surefire-report-dir> <output-json-file>"
   exit 1
   fi
-
-------------------------
-
-stages:
-  - deploy
-
-launch-oozie-workflow:
-  stage: deploy
-  script:
-    - chmod +x scripts/run_oozie.sh
-    - ./scripts/run_oozie.sh
-  variables:
-    OOZIE_HOST: "oozie.example.com"
-    USER_NAME: "ton_user"
-    NAMENODE: "hdfs://namenode.example.com:8020"
-    WORKFLOW_PATH: "/user/ton_user/mon_workflow"
-  tags:
-    - shell  # ou un runner docker si tu installes curl
---------
   
-  <workflow-app name="mon_workflow" xmlns="uri:oozie:workflow:0.5">
-    <parameters>
-      <include file="default-conf.xml"/>
-    </parameters>
+  REPORT_DIR="$1"
+  OUTPUT_FILE="$2"
 
-    <!-- reste du workflow -->
-  </workflow-app>
+# Prepare the JSON array
+echo '{"tests": [' > "$OUTPUT_FILE"
 
+FIRST=1
+for FILE in "$REPORT_DIR"/TEST-*.xml; do
+  grep -oP '<testcase[^>]*name="\K[^"]+' "$FILE" | while read -r NAME; do
+  if [[ "$NAME" =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
+  KEY="${BASH_REMATCH[1]}"
 
+      if grep -A5 "name=\"$NAME\"" "$FILE" | grep -q "<failure\|<error"; then
+  STATUS="FAILED"
+  elif grep -A5 "name=\"$NAME\"" "$FILE" | grep -q "<skipped"; then
+  STATUS="SKIPPED"
+  else
+  STATUS="PASSED"
+  fi
 
-
+  [ $FIRST -eq 0 ] && echo "," >> "$OUTPUT_FILE"
+    FIRST=0
+    
+    echo "  {" >> "$OUTPUT_FILE"
+    echo "    \"testKey\": \"$KEY\"," >> "$OUTPUT_FILE"
+    echo "    \"status\": \"$STATUS\"," >> "$OUTPUT_FILE"
+    echo "    \"comment\": \"$NAME\"," >> "$OUTPUT_FILE"
+    echo "    \"steps\": []" >> "$OUTPUT_FILE"
+                           echo -n "  }" >> "$OUTPUT_FILE"
+    fi
+    done
+    done
+    
+    echo ']}' >> "$OUTPUT_FILE"
+echo "✅ Xray JSON generated: $OUTPUT_FILE"
