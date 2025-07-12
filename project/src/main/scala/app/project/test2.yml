@@ -51,3 +51,68 @@ curl -H "Content-Type: multipart/form-data" \
   -F "results=@target/surefire-reports/TEST-SampleTest.xml" \
   "https://xray.cloud.getxray.app/api/v2/import/execution/junit"
 
+-----------------------------
+
+script:
+  - mvn help:active-profiles
+//test avec profile xray?
+
+script:
+  - mvn test
+  - ls -R target #voir tous les fichiers générés
+
+artifacts:
+  paths:
+    - target/surefire-reports/
+    - target/xray-reports/
+
+-----
+xray-test-job:
+  extends: .maven-common
+  stage: test
+  script:
+    - mvn verify -Pwith-xray #utilisation profile
+    - ls -R target
+
+test-xray:
+  extends: .maven:test
+  script:
+    - mvn verify
+    - echo "=== Rapports générés ==="
+    - find target/ -type f
+  artifacts:
+    paths:
+      - target/xray-reports/
+    reports:
+      junit:
+        - target/xray-reports/*.xml
+
+------------
+  mvn help:effective-pom #pom effectivement utilisé
+  mvn test -X | grep 'Found pom.xml'
+  
+  
+  --------
+  mvn dependency:list -DincludeArtifactIds=xray-junit-extension
+##ou
+ MAVEN_CLI_OPTS: "--batch-mode -X"
+
+ - Cherchez dans les logs la ligne Downloaded: app.getxray:xray-junit-extension ou toute erreur de résolution.
+
+##
+
+variables:
+  MAVEN_CLI_OPTS: "--batch-mode -Dsurefire.extensions=app.getxray:xray-junit-extension"
+test:
+  script:
+    - mvn $MAVEN_CLI_OPTS verify
+-------------
+
+
+- Vérifiez dans les logs que l’extension Xray est bien installée et activée
+  [INFO] --- maven-dependency-plugin:3.1.2:list (default-cli) @ mon-artifact ---
+...
+  app.getxray:xray-junit-extension:jar:1.x.x:compile
+- Passez Maven en mode -X pour traquer l’initialisation des extensions (cherchez Registering JUnit Platform Engine…)
+-------
+
